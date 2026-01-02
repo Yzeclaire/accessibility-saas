@@ -95,11 +95,18 @@ export async function POST(req: NextRequest) {
     }
 
     const supabase = await createClient()
-    
+
+    // Récupère l'utilisateur connecté
+    const { data: { user } } = await supabase.auth.getUser()
+
     // Crée le scan en pending
     const { data: scan, error: scanError } = await supabase
       .from('scans')
-      .insert({ url, status: 'pending' })
+      .insert({ 
+        url, 
+        status: 'pending',
+        user_id: user?.id || null // Sauve le user_id si connecté
+      })
       .select()
       .single()
 
