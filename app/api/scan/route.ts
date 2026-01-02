@@ -1,48 +1,88 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
-// Traductions des titres courants
+// Traductions détaillées avec explications actionnables
 function translateTitle(title: string): string {
   const translations: Record<string, string> = {
-    'Document does not have a main landmark': 'Pas de balise <main> principale',
-    'Lists do not contain only <li> elements': 'Listes mal structurées',
-    'Heading elements are not in a sequentially-descending order': 'Titres dans le désordre (H1, H2, H3...)',
-    'Background and foreground colors do not have a sufficient contrast ratio': 'Contraste des couleurs insuffisant',
-    'Links do not have a discernible name': 'Liens sans texte descriptif',
-    'Form elements do not have associated labels': 'Champs de formulaire sans labels',
-    'Image elements do not have [alt] attributes': 'Images sans attribut alt',
-    '[aria-*] attributes do not match their roles': 'Attributs ARIA incorrects',
-    'Buttons do not have an accessible name': 'Boutons sans nom accessible',
+    'Document does not have a main landmark': 'Structure HTML : Balise <main> manquante',
+    'Lists do not contain only <li> elements': 'Structure HTML : Listes mal formées',
+    'Heading elements are not in a sequentially-descending order': 'Hiérarchie : Titres dans le désordre',
+    'Background and foreground colors do not have a sufficient contrast ratio': 'Contraste : Texte difficile à lire',
+    'Links do not have a discernible name': 'Navigation : Liens sans texte descriptif',
+    'Form elements do not have associated labels': 'Formulaires : Champs sans étiquettes',
+    'Image elements do not have [alt] attributes': 'Images : Attribut alt manquant',
+    '[aria-*] attributes do not match their roles': 'ARIA : Attributs incorrects',
+    'Buttons do not have an accessible name': 'Navigation : Boutons sans nom',
+    'color-contrast': 'Contraste : Texte difficile à lire',
+    'link-name': 'Navigation : Liens sans texte',
+    'heading-order': 'Hiérarchie : Titres mal ordonnés',
+    'label': 'Formulaires : Labels manquants',
   }
   
   return translations[title] || title
 }
 
-// Simplifier les descriptions
-function translateDescription(desc: string): string {
-  if (desc.includes('main landmark')) {
-    return 'Votre page doit contenir une balise <main> pour aider les lecteurs d\'écran à naviguer.'
-  }
-  if (desc.includes('list structure')) {
-    return 'Les listes doivent contenir uniquement des éléments <li>. Corrigez la structure HTML.'
-  }
-  if (desc.includes('heading order')) {
-    return 'Les titres (H1, H2, H3...) doivent être dans l\'ordre. Ne sautez pas de niveaux.'
-  }
-  if (desc.includes('contrast ratio')) {
-    return 'Le contraste entre le texte et l\'arrière-plan est trop faible. Ratio minimum : 4.5:1.'
-  }
-  if (desc.includes('Link text')) {
-    return 'Certains liens n\'ont pas de texte visible. Ajoutez du texte descriptif.'
-  }
-  if (desc.includes('Form elements')) {
-    return 'Les champs de formulaire doivent avoir des labels associés avec <label for="...">.'
-  }
-  if (desc.includes('alt attributes')) {
-    return 'Toutes les images doivent avoir un attribut alt décrivant leur contenu.'
+function translateDescription(desc: string, title: string): string {
+  const guides: Record<string, {
+    problem: string
+    impact: string
+    solution: string
+    example: string
+  }> = {
+    'main landmark': {
+      problem: 'Votre page ne contient pas de balise <main>',
+      impact: 'Les personnes utilisant un lecteur d\'écran ne peuvent pas identifier rapidement le contenu principal de la page',
+      solution: 'Enveloppez votre contenu principal dans une balise <main>',
+      example: '<main><h1>Mon contenu</h1><p>...</p></main>'
+    },
+    'list structure': {
+      problem: 'Vos listes HTML contiennent des éléments autres que <li>',
+      impact: 'Les lecteurs d\'écran annoncent mal le nombre d\'éléments dans la liste',
+      solution: 'Assurez-vous que <ul> et <ol> ne contiennent que des <li>',
+      example: '<ul><li>Item 1</li><li>Item 2</li></ul>'
+    },
+    'heading order': {
+      problem: 'Vos titres ne suivent pas l\'ordre hiérarchique (H1 → H2 → H3)',
+      impact: 'Les utilisateurs de lecteurs d\'écran se perdent dans la navigation',
+      solution: 'Ne sautez jamais de niveau de titre (pas de H1 puis H4)',
+      example: 'H1 (titre page) → H2 (section) → H3 (sous-section)'
+    },
+    'contrast': {
+      problem: 'Le contraste entre le texte et l\'arrière-plan est insuffisant',
+      impact: 'Les personnes malvoyantes ou avec daltonisme ne peuvent pas lire le texte',
+      solution: 'Utilisez un ratio de contraste minimum de 4.5:1 (7:1 pour le petit texte)',
+      example: 'Testez vos couleurs sur WebAIM Contrast Checker'
+    },
+    'link': {
+      problem: 'Certains liens n\'ont pas de texte visible ou descriptif',
+      impact: 'Les lecteurs d\'écran annoncent "lien" sans contexte',
+      solution: 'Ajoutez un texte descriptif ou un aria-label',
+      example: '<a href="/contact">Contactez-nous</a> ou <a aria-label="Contactez-nous"><img src="mail.svg"></a>'
+    },
+    'label': {
+      problem: 'Vos champs de formulaire n\'ont pas de <label> associé',
+      impact: 'Les utilisateurs ne savent pas à quoi sert le champ',
+      solution: 'Ajoutez un <label> avec l\'attribut for qui correspond à l\'id du champ',
+      example: '<label for="email">Email</label><input id="email" type="email">'
+    },
+    'alt': {
+      problem: 'Des images n\'ont pas d\'attribut alt',
+      impact: 'Les lecteurs d\'écran ne peuvent pas décrire les images',
+      solution: 'Ajoutez un alt descriptif (ou alt="" pour les images décoratives)',
+      example: '<img src="chat.jpg" alt="Chat tigré endormi sur un canapé">'
+    }
   }
   
-  // Si pas de traduction, retourne une version simplifiée
+  // Trouve le guide correspondant
+  const key = Object.keys(guides).find(k => 
+    desc.toLowerCase().includes(k) || title.toLowerCase().includes(k)
+  )
+  
+  if (key) {
+    const guide = guides[key]
+    return `❌ ${guide.problem}\n\n💡 Impact : ${guide.impact}\n\n✅ Solution : ${guide.solution}\n\n📝 Exemple : ${guide.example}`
+  }
+  
   return desc.split('[Learn more')[0].trim() || 'Problème d\'accessibilité détecté'
 }
 
@@ -100,7 +140,8 @@ export async function POST(req: NextRequest) {
           id,
           impact: audit.score < 0.5 ? 'serious' : 'moderate',
           description: translateTitle(audit.title || 'Problème détecté'),
-          help: translateDescription(audit.description || '')
+          help: translateDescription(audit.description || '', audit.title || ''),
+          wcagLevel: 'A' // Tu peux parser ça depuis audit.details si besoin
         }))
       
       const score = Math.round(accessibilityScore * 100)
