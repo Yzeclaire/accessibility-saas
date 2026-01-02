@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), 25000) // 25s max
       
-      const psiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&category=accessibility`
+      const psiUrl = `https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=${encodeURIComponent(url)}&category=accessibility&key=${process.env.GOOGLE_PAGESPEED_API_KEY}`
       
       const response = await fetch(psiUrl, { 
         signal: controller.signal 
