@@ -9,9 +9,12 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@sparticuz/chromium-min": "^143.0.0",
     "@supabase/ssr": "^0.8.0",
     "axe-core": "^4.11.0",
+    "axe-playwright": "^2.2.2",
     "next": "16.1.1",
+    "playwright-core": "^1.57.0",
     "puppeteer": "^24.34.0",
     "react": "19.2.3",
     "react-dom": "19.2.3"
