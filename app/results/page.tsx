@@ -1,24 +1,42 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { Suspense } from 'react'
 
-export default async function ResultsPage({
-  searchParams,
-}: {
-  searchParams: { url: string }
-}) {
+interface ResultsPageProps {
+  searchParams: Promise<{ url?: string }>
+}
+
+async function ResultsContent({ url }: { url: string }) {
   const supabase = await createClient()
   
   const { data: scans } = await supabase
     .from('scans')
     .select('*')
-    .eq('url', searchParams.url)
+    .eq('url', url)
     .order('created_at', { ascending: false })
     .limit(1)
   
   const scan = scans?.[0]
   
   if (!scan) {
-    redirect('/')
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center px-6">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 text-center">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+            Scan introuvable
+          </h1>
+          <p className="text-gray-600 dark:text-gray-300 mb-6">
+            Aucun résultat trouvé pour cette URL.
+          </p>
+          <a
+            href="/"
+            className="inline-block px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition-colors"
+          >
+            Retour à l&apos;accueil
+          </a>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -26,7 +44,7 @@ export default async function ResultsPage({
       <div className="max-w-4xl mx-auto">
         <div className="mb-8">
           <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
-            Résultats de l'analyse
+            Résultats de l&apos;analyse
           </h1>
           <p className="text-lg text-gray-600 dark:text-gray-300 break-all">
             {scan.url}
@@ -36,7 +54,7 @@ export default async function ResultsPage({
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 mb-6">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">
-              Score d'accessibilité
+              Score d&apos;accessibilité
             </h2>
             <div className={`px-4 py-2 rounded-full ${
               scan.score >= 90 ? 'bg-green-100 dark:bg-green-900/20' :
@@ -114,5 +132,43 @@ export default async function ResultsPage({
         </div>
       </div>
     </div>
+  )
+}
+
+export default async function ResultsPage({ searchParams }: ResultsPageProps) {
+  const params = await searchParams
+  const url = params.url
+
+  if (!url) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center px-6">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8 text-center">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+            URL manquante
+          </h1>
+          <p className="text-gray-600 dark:text-gray-300 mb-6">
+            Veuillez fournir une URL pour afficher les résultats.
+          </p>
+          <a
+            href="/"
+            className="inline-block px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition-colors"
+          >
+            Retour à l&apos;accueil
+          </a>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+          <p className="text-gray-600 dark:text-gray-300">Chargement...</p>
+        </div>
+      }
+    >
+      <ResultsContent url={decodeURIComponent(url)} />
+    </Suspense>
   )
 }
